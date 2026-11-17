@@ -9,5 +9,5 @@ ARGOCD_CHART_VERSION="10.18.0"
 # renovate: datasource=github-releases depName=kubernetes-sigs/metrics-server
 METRICS_SERVER_VERSION="v0.9.1"
 METRICS_SERVER_URL="https://github.com/kubernetes-sigs/metrics-server/releases/download/${METRICS_SERVER_VERSION}/components.yaml"
-# renovate: datasource=docker depName=alpine/git
-GIT_IMAGE="alpine/git:v2.54.1"
+# renovate: datasource=docker depName=alpine
+GIT_IMAGE="alpine:3.24.4"

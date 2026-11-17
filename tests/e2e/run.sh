@@ -113,10 +113,16 @@ spec:
         - name: git
           image: ${GIT_IMAGE}
           command: ["sh", "-c"]
+          # git-daemon is a separate Alpine package (not in the alpine/git image).
           args:
-            - mkdir -p /srv/git && git config --global --add safe.directory '*' &&
+            - apk add --no-cache git git-daemon >/dev/null && mkdir -p /srv/git &&
+              git config --global --add safe.directory '*' &&
               exec git daemon --reuseaddr --export-all --enable=receive-pack --base-path=/srv/git /srv/git
           ports: [{containerPort: 9418}]
+          # Ready only once the daemon listens, so `rollout status` can't pass on a crashing pod.
+          readinessProbe:
+            tcpSocket: {port: 9418}
+            periodSeconds: 2
 ---
 apiVersion: v1
 kind: Service
