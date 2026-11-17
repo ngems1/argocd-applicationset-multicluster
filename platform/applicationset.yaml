@@ -1,0 +1,68 @@
+# One Application per registered cluster that carries the label code-clinic.io/env.
+# Add a cluster = add a labelled cluster Secret; no change here (docs/adr/0001).
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: podinfo
+  namespace: argocd
+spec:
+  goTemplate: true
+  # A typo such as {{ .metdata.labels }} must fail, not render "<no value>" into a path.
+  goTemplateOptions: ["missingkey=error"]
+
+  generators:
+    - clusters:
+        selector:
+          matchExpressions:
+            - key: code-clinic.io/env
+              operator: In
+              values: [dev, staging, prod]
+
+  # Progressive sync: a change reaches staging only after dev is healthy, and prod only after
+  # staging (docs/adr/0003). Needs applicationsetcontroller.enable.progressive.syncs=true.
+  strategy:
+    type: RollingSync
+    rollingSync:
+      steps:
+        - matchExpressions:
+            - {key: env, operator: In, values: [dev]}
+        - matchExpressions:
+            - {key: env, operator: In, values: [staging]}
+        - matchExpressions:
+            - {key: env, operator: In, values: [prod]}
+          maxUpdate: 1 # one prod cluster at a time
+
+  syncPolicy:
+    # Deleting this ApplicationSet (or a cluster losing its label) must never delete what
+    # runs in prod: Applications are created and updated, never deleted automatically, and
+    # their resources survive the deletion of an Application (docs/adr/0004).
+    applicationsSync: create-update
+    preserveResourcesOnDeletion: true
+
+  template:
+    metadata:
+      name: 'podinfo-{{ index .metadata.labels "code-clinic.io/env" }}'
+      labels:
+        app.kubernetes.io/name: podinfo
+        env: '{{ index .metadata.labels "code-clinic.io/env" }}'
+    spec:
+      project: podinfo
+      source:
+        repoURL: https://github.com/ngems1/argocd-applicationset-multicluster.git
+        targetRevision: main
+        path: 'apps/podinfo/overlays/{{ index .metadata.labels "code-clinic.io/env" }}'
+      destination:
+        name: "{{ .name }}"
+        namespace: podinfo
+      syncPolicy:
+        automated:
+          prune: true
+          selfHeal: true
+        syncOptions:
+          - PruneLast=true # delete removed resources only after the new ones are applied
+        retry:
+          limit: 5
+          backoff:
+            duration: 10s
+            factor: 2
+            maxDuration: 3m

@@ -1,0 +1,33 @@
+# The project is the security boundary for everything the ApplicationSet generates:
+# which repository, which destinations, which kinds. The `default` project allows ALL of them.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: podinfo
+  namespace: argocd
+  # Deleting the project while Applications still use it would orphan them.
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  description: podinfo on every registered cluster (code-clinic #9)
+  sourceRepos:
+    - https://github.com/ngems1/argocd-applicationset-multicluster.git
+  # Any registered cluster, but only the podinfo namespace.
+  destinations:
+    - name: "*"
+      namespace: podinfo
+  # No cluster-scoped resources at all: namespaces are created at cluster onboarding
+  # (clusters/onboarding.yaml), not by the application.
+  clusterResourceWhitelist: []
+  # Only the kinds this application is made of.
+  namespaceResourceWhitelist:
+    - group: apps
+      kind: Deployment
+    - group: ""
+      kind: Service
+    - group: policy
+      kind: PodDisruptionBudget
+    - group: autoscaling
+      kind: HorizontalPodAutoscaler
+  orphanedResources:
+    warn: true
