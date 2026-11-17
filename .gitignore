@@ -27,3 +27,6 @@ Thumbs.db
 
 # Local SVG / GIF frame checks
 .snapshots/
+
+# Rendered manifests (make render)
+rendered/

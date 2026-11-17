@@ -1,0 +1,6 @@
+# Apply on EVERY workload cluster during onboarding:  kubectl --context <cluster> apply -k clusters
+# (cluster-secret.example.yaml is documentation only and is deliberately not listed here.)
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - onboarding.yaml

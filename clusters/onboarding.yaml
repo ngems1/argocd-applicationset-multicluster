@@ -2,7 +2,7 @@
 #   kubectl --context <cluster> apply -f clusters/onboarding.yaml
 # It creates the namespace with the restricted Pod Security Standard and a ServiceAccount
 # that can manage that namespace only. Argo CD gets this account's credentials, never
-# cluster-admin (docs/adr/0004, THREAT-MODEL T1).
+# cluster-admin (THREAT-MODEL T1).
 apiVersion: v1
 kind: Namespace
 metadata:
