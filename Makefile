@@ -13,7 +13,7 @@ CRDS := https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/
 DOCKER_E2E := docker run --rm --user root -v /var/run/docker.sock:/var/run/docker.sock \
   -v "$(CURDIR):/work" -w /work
 
-.PHONY: help setup lint test validate render security docs e2e e2e-up e2e-down ci-local all
+.PHONY: help setup lint test validate render security docs e2e e2e-up e2e-shell e2e-down ci-local all
 
 help:      ## list targets
 	@grep -E '^[a-z0-9-]+:.*##' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-10s %s\n", $$1, $$2}'
@@ -63,6 +63,11 @@ e2e:       ## 3 kind clusters, Argo CD, ApplicationSet; deleted afterwards (CI: 
 
 e2e-up:    ## same as e2e but KEEP the clusters to explore (then: make e2e-down)
 	$(DOCKER_E2E) -e KEEP=1 $(IMAGE) bash tests/e2e/run.sh
+
+e2e-shell: ## a shell that can reach the e2e clusters (for the drills): KUBECONFIG = cc-dev
+	docker run --rm -it --user root -v /var/run/docker.sock:/var/run/docker.sock \
+	  -v "$(CURDIR):/work" -w /work -e KUBECONFIG=/work/.e2e/dev.kubeconfig $(IMAGE) \
+	  bash -c 'docker network connect kind "$$(hostname)" && git config --global --add safe.directory "*" && exec bash'
 
 e2e-down:  ## delete the e2e clusters
 	$(DOCKER_E2E) $(IMAGE) bash tests/e2e/down.sh
