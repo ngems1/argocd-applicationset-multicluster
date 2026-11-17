@@ -142,8 +142,9 @@ same change: what fails?
 **What to observe.** dev and staging are unaffected (their manifests didn't change).
 `podinfo-prod` is **OutOfSync**, and the operation is stuck `Running: one or more
 synchronization tasks are not valid: resource :ConfigMap is not permitted in project podinfo.
-Retrying attempt #3`. The ConfigMap does not exist in prod. Locally, `make test` fails
-`test_every_rendered_kind_is_allowed_by_the_appproject` with `ConfigMap (core) not whitelisted`.
+Retrying attempt #3`. The ConfigMap does not exist in prod. Locally, `make test` fails two
+tests: `test_every_rendered_kind_is_allowed_by_the_appproject[prod]` with `ConfigMap (core) not
+whitelisted`, and `test_kinds_per_environment` (prod's list of kinds changed).
 
 **Questions**
 
