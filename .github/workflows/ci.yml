@@ -1,0 +1,110 @@
+# CI: render + validate every manifest, static tests, and the real thing on 3 kind clusters.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 6 * * 1" # weekly: a new chart, Argo CD or Kubernetes release breaks it here first
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize/v(?<version>.+)$
+  KUSTOMIZE_VERSION: "5.8.3"
+
+jobs:
+  repo:
+    uses: ngems1/code-clinic/.github/workflows/repo-checks.yml@v1
+
+  # kustomize build (--enable-helm) + kubeconform on Kubernetes 1.33-1.37, Argo CD CRDs included.
+  kustomize:
+    uses: ngems1/code-clinic/.github/workflows/kustomize-checks.yml@v1
+    with:
+      paths: "apps/podinfo/overlays/* platform clusters"
+      enable-helm: true
+
+  shell:
+    uses: ngems1/code-clinic/.github/workflows/shell-checks.yml@v1
+    with:
+      bats-tests: "" # the shell code is the e2e test itself (job below)
+
+  static:
+    name: static tests · trivy config
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@v10.3.3
+      - uses: azure/setup-helm@v5.1.0
+        with:
+          version: v4.3.2
+      - name: install kustomize (checksum verified)
+        run: |
+          cd "$RUNNER_TEMP"
+          base="https://github.com/kubernetes-sigs/kustomize/releases/download/kustomize%2Fv${KUSTOMIZE_VERSION}"
+          f="kustomize_v${KUSTOMIZE_VERSION}_linux_amd64.tar.gz"
+          curl -fsSLO "$base/$f"
+          curl -fsSL "$base/checksums.txt" | grep " ${f}\$" | sha256sum -c -
+          tar -xzf "$f" kustomize && sudo install kustomize /usr/local/bin/kustomize
+      - name: ruff · mypy · pytest
+        run: |
+          uv sync --locked
+          uv run ruff check .
+          uv run ruff format --check .
+          uv run mypy
+          uv run pytest
+      - name: render the overlays
+        run: |
+          mkdir -p rendered
+          for env in dev staging prod; do
+            kustomize build --enable-helm "apps/podinfo/overlays/$env" > "rendered/$env.yaml"
+          done
+      - name: trivy config (HIGH/CRITICAL misconfigurations fail)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: config
+          scan-ref: rendered
+          severity: HIGH,CRITICAL
+          exit-code: "1"
+
+  e2e:
+    name: e2e on 3 kind clusters
+    needs: [kustomize, static]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7.0.1
+        with:
+          persist-credentials: false
+      - uses: azure/setup-helm@v5.1.0
+        with:
+          version: v4.3.2
+      - uses: helm/kind-action@v1.15.2
+        with:
+          version: v0.33.0
+          install_only: true # run.sh creates the three clusters itself
+      - name: tests/e2e/run.sh
+        run: tests/e2e/run.sh
+      - name: diagnostics on failure
+        if: failure()
+        run: |
+          for c in dev staging prod; do
+            kubectl --kubeconfig ".e2e/$c.kubeconfig" get all -A || true
+          done
+          kubectl --kubeconfig .e2e/dev.kubeconfig -n argocd get applications,applicationsets -o yaml || true
+          kubectl --kubeconfig .e2e/dev.kubeconfig -n argocd logs deploy/argocd-applicationset-controller --tail=200 || true
