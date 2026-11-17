@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Versions used by the e2e test (sourced by run.sh). Renovate bumps them via the comments.
 # shellcheck shell=bash disable=SC2034
 
