@@ -1,0 +1,121 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 500" width="960" height="500" role="img" aria-labelledby="t d">
+  <title id="t">argocd-applicationset-multicluster: one commit, rolled out dev → staging → prod</title>
+  <desc id="d">A commit lands on main in Git. The ApplicationSet podinfo, whose clusters generator selects every cluster secret labelled code-clinic.io/env, has generated one Application per cluster: podinfo-dev, podinfo-staging and podinfo-prod, each rendering its own Kustomize overlay on top of the podinfo Helm chart. RollingSync syncs them in steps: first dev, which turns Healthy; only then staging, which turns Healthy; only then prod, where the HPA keeps three pods and a PodDisruptionBudget keeps two through drains. Below, a reminder: if a cluster loses its label, its Application is kept, because the ApplicationSet only creates and updates.</desc>
+  <style>
+    .bg { fill: #0f172a; }
+    .h1 { fill: #f8fafc; font: 700 22px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .h2 { fill: #94a3b8; font: 400 14px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .lbl { fill: #f1f5f9; font: 600 15px system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+    .mono { fill: #e2e8f0; font: 400 13px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .sub { fill: #94a3b8; font: 400 12.5px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .step { fill: #cbd5e1; font: 700 12px system-ui, sans-serif; letter-spacing: 1px; }
+    .pill text { font: 700 12px system-ui, sans-serif; fill: #f8fafc; }
+    .box { fill: #1e293b; stroke: #334155; stroke-width: 2; }
+    .cluster { fill: #111c33; stroke: #334155; stroke-width: 1.5; }
+    .line { stroke: #475569; stroke-width: 2; fill: none; }
+    .flow { stroke: #475569; stroke-width: 2.5; stroke-dasharray: 7 7; fill: none; animation: dash 1s linear infinite; }
+    .token { fill: #fbbf24; offset-path: path("M196,150 H320"); animation: commit 12s ease-in-out infinite; }
+    .new { opacity: 0; animation: newc 12s linear infinite; }
+    .appset { animation: glow 12s linear infinite; }
+    .sync { opacity: 0; animation: 12s linear infinite; }
+    .ok { opacity: 0; animation: 12s linear infinite; }
+    .d1 { animation-name: sync1; } .o1 { animation-name: ok1; }
+    .d2 { animation-name: sync2; } .o2 { animation-name: ok2; }
+    .d3 { animation-name: sync3; } .o3 { animation-name: ok3; }
+    .wire1 { animation: wire1 12s linear infinite; } .wire2 { animation: wire2 12s linear infinite; } .wire3 { animation: wire3 12s linear infinite; }
+    .done { opacity: 0; animation: done 12s linear infinite; }
+    @keyframes dash { to { stroke-dashoffset: -14; } }
+    @keyframes commit { 0%, 8% { offset-distance: 0%; opacity: 0; } 9% { opacity: 1; } 20%, 100% { offset-distance: 100%; opacity: 0; } 19% { opacity: 1; } }
+    @keyframes newc { 0%, 6% { opacity: 0; } 8%, 94% { opacity: 1; } 98%, 100% { opacity: 0; } }
+    @keyframes glow { 0%, 18% { stroke: #334155; fill: #1e293b; } 20%, 30% { stroke: #fbbf24; fill: #3b2f0b; } 33%, 100% { stroke: #334155; fill: #1e293b; } }
+    @keyframes wire1 { 0%, 22% { stroke: #475569; } 24%, 40% { stroke: #fbbf24; } 42%, 100% { stroke: #475569; } }
+    @keyframes wire2 { 0%, 42% { stroke: #475569; } 44%, 60% { stroke: #fbbf24; } 62%, 100% { stroke: #475569; } }
+    @keyframes wire3 { 0%, 62% { stroke: #475569; } 64%, 80% { stroke: #fbbf24; } 82%, 100% { stroke: #475569; } }
+    @keyframes sync1 { 0%, 23% { opacity: 0; } 24%, 34% { opacity: 1; } 35%, 100% { opacity: 0; } }
+    @keyframes ok1 { 0%, 34% { opacity: 0; } 35%, 94% { opacity: 1; } 98%, 100% { opacity: 0; } }
+    @keyframes sync2 { 0%, 43% { opacity: 0; } 44%, 54% { opacity: 1; } 55%, 100% { opacity: 0; } }
+    @keyframes ok2 { 0%, 54% { opacity: 0; } 55%, 94% { opacity: 1; } 98%, 100% { opacity: 0; } }
+    @keyframes sync3 { 0%, 63% { opacity: 0; } 64%, 74% { opacity: 1; } 75%, 100% { opacity: 0; } }
+    @keyframes ok3 { 0%, 74% { opacity: 0; } 75%, 94% { opacity: 1; } 98%, 100% { opacity: 0; } }
+    @keyframes done { 0%, 78% { opacity: 0; } 80%, 94% { opacity: 1; } 98%, 100% { opacity: 0; } }
+    @media (prefers-reduced-motion: reduce) {
+      * { animation: none !important; }
+      .new, .ok, .done { opacity: 1; }
+      .sync, .token { opacity: 0; }
+    }
+  </style>
+
+  <rect class="bg" width="960" height="500"/>
+  <text class="h1" x="40" y="38">One commit, every cluster, in order</text>
+  <text class="h2" x="40" y="60">ApplicationSet (clusters generator) + Kustomize overlays on a Helm chart + RollingSync</text>
+
+  <!-- Git -->
+  <rect class="box" x="40" y="90" width="156" height="120" rx="10"/>
+  <text class="lbl" x="56" y="116">Git: main</text>
+  <text class="sub" x="56" y="140">apps/podinfo/</text>
+  <text class="sub" x="56" y="158">  base (chart)</text>
+  <text class="sub" x="56" y="176">  overlays/dev</text>
+  <text class="sub" x="56" y="194">  overlays/{stg,prod}</text>
+  <g class="new"><rect x="140" y="100" width="46" height="22" rx="6" fill="#3b2f0b" stroke="#fbbf24"/><text class="mono" x="163" y="116" text-anchor="middle" fill="#fde68a">+1</text></g>
+
+  <!-- cluster secrets -->
+  <rect class="box" x="320" y="250" width="230" height="120" rx="10"/>
+  <text class="lbl" x="435" y="276" text-anchor="middle">cluster secrets</text>
+  <text class="sub" x="336" y="300">cc-dev      env=dev</text>
+  <text class="sub" x="336" y="322">cc-staging  env=staging</text>
+  <text class="sub" x="336" y="344">cc-prod     env=prod</text>
+  <path class="line" d="M435,250 V212"/>
+  <text class="sub" x="446" y="236">selects</text>
+
+  <!-- ApplicationSet -->
+  <path class="flow" d="M196,150 H320"/>
+  <rect class="box appset" x="320" y="90" width="230" height="120" rx="10"/>
+  <text class="lbl" x="435" y="116" text-anchor="middle">ApplicationSet podinfo</text>
+  <text class="sub" x="336" y="140">generator: clusters</text>
+  <text class="sub" x="336" y="160">strategy: RollingSync</text>
+  <text class="sub" x="336" y="180">applicationsSync:</text>
+  <text class="sub" x="336" y="198">  create-update</text>
+  <circle class="token" r="7" cx="0" cy="0"/>
+
+  <!-- wires to clusters -->
+  <path class="line wire1" d="M550,120 C600,120 600,112 640,112"/>
+  <path class="line wire2" d="M550,150 C600,150 600,232 640,232"/>
+  <path class="line wire3" d="M550,180 C600,180 600,352 640,352"/>
+
+  <!-- clusters -->
+  <g>
+    <rect class="cluster" x="640" y="80" width="280" height="100" rx="10"/>
+    <text class="step" x="656" y="100">STEP 1 · cc-dev</text>
+    <text class="mono" x="656" y="126">podinfo-dev</text>
+    <text class="sub" x="656" y="148">overlay dev · 1 replica</text>
+    <g class="pill sync d1"><rect x="808" y="110" width="98" height="24" rx="12" fill="#0c4a6e" stroke="#38bdf8"/><text x="857" y="127" text-anchor="middle">Syncing…</text></g>
+    <g class="pill ok o1"><rect x="808" y="110" width="98" height="24" rx="12" fill="#14532d" stroke="#22c55e"/><text x="857" y="127" text-anchor="middle">✓ Healthy</text></g>
+  </g>
+  <g>
+    <rect class="cluster" x="640" y="200" width="280" height="100" rx="10"/>
+    <text class="step" x="656" y="220">STEP 2 · cc-staging</text>
+    <text class="mono" x="656" y="246">podinfo-staging</text>
+    <text class="sub" x="656" y="268">2 replicas · PDB min 1</text>
+    <g class="pill sync d2"><rect x="808" y="230" width="98" height="24" rx="12" fill="#0c4a6e" stroke="#38bdf8"/><text x="857" y="247" text-anchor="middle">Syncing…</text></g>
+    <g class="pill ok o2"><rect x="808" y="230" width="98" height="24" rx="12" fill="#14532d" stroke="#22c55e"/><text x="857" y="247" text-anchor="middle">✓ Healthy</text></g>
+  </g>
+  <g>
+    <rect class="cluster" x="640" y="320" width="280" height="100" rx="10"/>
+    <text class="step" x="656" y="340">STEP 3 · cc-prod</text>
+    <text class="mono" x="656" y="366">podinfo-prod</text>
+    <text class="sub" x="656" y="388">HPA min 3 · PDB min 2</text>
+    <g class="pill sync d3"><rect x="808" y="350" width="98" height="24" rx="12" fill="#0c4a6e" stroke="#38bdf8"/><text x="857" y="367" text-anchor="middle">Syncing…</text></g>
+    <g class="pill ok o3"><rect x="808" y="350" width="98" height="24" rx="12" fill="#14532d" stroke="#22c55e"/><text x="857" y="367" text-anchor="middle">✓ Healthy</text></g>
+  </g>
+
+  <g class="done">
+    <rect x="40" y="250" width="250" height="120" rx="10" fill="#14532d" stroke="#22c55e" stroke-width="1.5"/>
+    <text class="lbl" x="56" y="278">rolled out in order</text>
+    <text class="mono" x="56" y="304">dev → staging → prod</text>
+    <text class="sub" x="56" y="330">each step waits for the</text>
+    <text class="sub" x="56" y="348">previous one to be Healthy</text>
+  </g>
+
+  <text class="sub" x="40" y="452">A cluster that loses its env label keeps its Application (create-update), and deleting an Application</text>
+  <text class="sub" x="40" y="472">keeps its resources (preserveResourcesOnDeletion). Deleting prod is always a human decision.</text>
+</svg>
