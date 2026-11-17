@@ -1,0 +1,26 @@
+# Values shared by every environment. Per-environment differences live in the overlays.
+replicaCount: 1
+
+ui:
+  message: "podinfo, deployed by Argo CD"
+
+# Restricted Pod Security Standard: the namespace enforces it (clusters/), so the pods must
+# comply or they are rejected at admission.
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  capabilities:
+    drop: ["ALL"]
+
+resources:
+  requests:
+    cpu: 10m
+    memory: 32Mi
+  limits:
+    memory: 128Mi

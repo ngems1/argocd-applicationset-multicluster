@@ -1,0 +1,12 @@
+# staging: production-like (two replicas + a disruption budget), smaller.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - pdb.yaml
+labels:
+  - pairs:
+      code-clinic.io/env: staging
+    includeSelectors: false
+patches:
+  - path: deployment.yaml

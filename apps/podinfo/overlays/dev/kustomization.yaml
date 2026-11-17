@@ -1,0 +1,11 @@
+# dev: one replica, a visible banner so you know which environment answered.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+labels:
+  - pairs:
+      code-clinic.io/env: dev
+    includeSelectors: false
+patches:
+  - path: deployment.yaml

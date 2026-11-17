@@ -1,0 +1,22 @@
+# prod: the HPA owns the replica count, a PDB keeps 2 pods through node drains, pods spread
+# across nodes, and requests match real usage.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - hpa.yaml
+  - pdb.yaml
+labels:
+  - pairs:
+      code-clinic.io/env: prod
+    includeSelectors: false
+patches:
+  - path: deployment.yaml
+  # With an HPA, the Deployment must NOT set replicas: every sync would reset the count the
+  # HPA chose (Argo CD sees a diff, self-heal "fixes" it, the HPA scales again...).
+  - target:
+      kind: Deployment
+      name: podinfo
+    patch: |-
+      - op: remove
+        path: /spec/replicas

@@ -1,0 +1,23 @@
+# Base: the podinfo Helm chart, inflated by Kustomize. Helm packages the app; the overlays
+# change only what differs per environment (docs/adr/0002). Build it with:
+#   kustomize build --enable-helm apps/podinfo/overlays/<env>
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: podinfo
+
+helmCharts:
+  - name: podinfo
+    repo: https://stefanprodan.github.io/podinfo
+    version: 6.17.0 # Renovate bumps helmCharts versions with its built-in kustomize manager
+    releaseName: podinfo
+    namespace: podinfo
+    valuesFile: values.yaml
+    # The chart ships `helm test` pods (curl, grpc-health-probe...). Without this, Kustomize
+    # renders them as ordinary Pods and Argo CD would deploy them to every cluster.
+    skipTests: true
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: code-clinic
+    includeSelectors: false
