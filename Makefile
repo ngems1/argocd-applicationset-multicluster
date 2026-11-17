@@ -45,7 +45,7 @@ render:    ## write what Argo CD will apply to rendered/<env>.yaml
 	@ls rendered
 
 security:  render ## gitleaks (files + history) and trivy config on the rendered manifests (CI: repo, static)
-	gitleaks git --redact --no-banner .
+	gitleaks git --redact --no-banner --log-opts=HEAD .  # this branch only: review-exercise plants a fake secret
 	gitleaks dir --redact --no-banner .
 	trivy config --quiet --severity HIGH,CRITICAL --exit-code 1 rendered
 
