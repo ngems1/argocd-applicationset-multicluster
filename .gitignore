@@ -1,0 +1,29 @@
+# Python (tests)
+__pycache__/
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+
+# Charts downloaded by `kustomize build --enable-helm` (re-fetched at the pinned version)
+charts/
+
+# Local tools and e2e state
+.bin/
+.e2e/
+*.kubeconfig
+
+# Secrets: never commit these
+.env
+*.pem
+*.key
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Local SVG / GIF frame checks
+.snapshots/
