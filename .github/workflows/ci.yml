@@ -19,6 +19,8 @@ concurrency:
 env:
   # renovate: datasource=github-releases depName=kubernetes-sigs/kustomize extractVersion=^kustomize/v(?<version>.+)$
   KUSTOMIZE_VERSION: "5.8.3"
+  # renovate: datasource=github-releases depName=aquasecurity/trivy
+  TRIVY_VERSION: "0.76.2"
 
 jobs:
   repo:
@@ -71,13 +73,18 @@ jobs:
           for env in dev staging prod; do
             kustomize build --enable-helm "apps/podinfo/overlays/$env" > "rendered/$env.yaml"
           done
+      # Installed directly (checksum verified) rather than with trivy-action, whose installer
+      # step needs a GitHub token: this also runs under `act` with no token.
+      - name: install trivy (checksum verified)
+        run: |
+          cd "$RUNNER_TEMP"
+          base="https://github.com/aquasecurity/trivy/releases/download/v${TRIVY_VERSION}"
+          f="trivy_${TRIVY_VERSION}_Linux-64bit.tar.gz"
+          curl -fsSLO "$base/$f"
+          curl -fsSL "$base/trivy_${TRIVY_VERSION}_checksums.txt" | grep " ${f}\$" | sha256sum -c -
+          tar -xzf "$f" trivy && sudo install trivy /usr/local/bin/trivy
       - name: trivy config (HIGH/CRITICAL misconfigurations fail)
-        uses: aquasecurity/trivy-action@v0.36.0
-        with:
-          scan-type: config
-          scan-ref: rendered
-          severity: HIGH,CRITICAL
-          exit-code: "1"
+        run: trivy config --severity HIGH,CRITICAL --exit-code 1 rendered
 
   e2e:
     name: e2e on 3 kind clusters
