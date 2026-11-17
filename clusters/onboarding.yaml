@@ -38,6 +38,34 @@ subjects:
     name: argocd-manager
     namespace: argocd-manager
 ---
+# Read access to EVERY kind in the podinfo namespace. In namespace-scoped mode Argo CD still
+# lists and watches all namespaced kinds there (to build its cache and the resource tree),
+# including ones `admin` doesn't cover (CSIStorageCapacity, CRDs such as ApplicationSet).
+# Without this the cluster cache fails with "forbidden: cannot list resource ...".
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: argocd-manager-read
+  namespace: podinfo
+rules:
+  - apiGroups: ["*"]
+    resources: ["*"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-manager-read
+  namespace: podinfo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-manager-read
+subjects:
+  - kind: ServiceAccount
+    name: argocd-manager
+    namespace: argocd-manager
+---
 # A long-lived token for the lab. In production use short-lived credentials instead
 # (EKS: an IAM role via awsAuthConfig; GKE/AKS: workload identity). See the README.
 apiVersion: v1

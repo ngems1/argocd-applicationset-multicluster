@@ -85,9 +85,13 @@ def test_onboarding_grants_one_namespace_only() -> None:
     namespace = next(d for d in docs if d["kind"] == "Namespace" and d["metadata"]["name"] == "podinfo")
     assert namespace["metadata"]["labels"]["pod-security.kubernetes.io/enforce"] == "restricted"
     bindings = [d for d in docs if d["kind"] in ("RoleBinding", "ClusterRoleBinding")]
-    assert [b["kind"] for b in bindings] == ["RoleBinding"], "no cluster-wide grants to Argo CD"
-    assert bindings[0]["metadata"]["namespace"] == "podinfo"
-    assert bindings[0]["roleRef"]["name"] != "cluster-admin"
+    assert {b["kind"] for b in bindings} == {"RoleBinding"}, "no cluster-wide grants to Argo CD"
+    assert {b["metadata"]["namespace"] for b in bindings} == {"podinfo"}
+    assert {b["roleRef"]["name"] for b in bindings} == {"admin", "argocd-manager-read"}
+    # The read Role may only read: Argo CD caches every namespaced kind (CRDs included).
+    (read,) = [d for d in docs if d["kind"] == "Role"]
+    assert read["metadata"]["namespace"] == "podinfo"
+    assert all(set(rule["verbs"]) == {"get", "list", "watch"} for rule in read["rules"])
 
 
 def test_example_cluster_secret_is_namespace_scoped_and_has_no_real_credential() -> None:
