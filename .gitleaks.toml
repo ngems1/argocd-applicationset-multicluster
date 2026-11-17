@@ -1,0 +1,10 @@
+# gitleaks: default rules, plus ONE narrow exception.
+# .e2e/ holds the kubeconfigs of the throwaway kind clusters created by `make e2e-up`
+# (client keys for clusters that live on your laptop for a few minutes). It is git-ignored,
+# never committed, and deleted by `make e2e-down`. Everything else is scanned as usual.
+[extend]
+useDefault = true
+
+[[allowlists]]
+description = "local e2e state (kind kubeconfigs), git-ignored"
+paths = ['''^\.e2e/''']
