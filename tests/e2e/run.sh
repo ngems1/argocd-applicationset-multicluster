@@ -56,7 +56,11 @@ trap cleanup EXIT
 # Inside a container (make e2e), the kind API servers are reached over the "kind" Docker
 # network by container name; on a plain host, through the published localhost port.
 in_container=0
-[ -f /.dockerenv ] && in_container=1
+if [ -f /.dockerenv ]; then
+  in_container=1
+  # The repository is a bind mount owned by another user: tell git it's fine to read it.
+  git config --global --add safe.directory "$repo"
+fi
 
 log "1/7 kind clusters (Kubernetes ${KIND_NODE_IMAGE%%@*})"
 for c in "${CLUSTERS[@]}"; do
