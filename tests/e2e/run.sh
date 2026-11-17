@@ -132,10 +132,10 @@ spec:
   ports: [{port: 9418, targetPort: 9418}]
 EOF
 kc dev -n git rollout status deploy/git-server --timeout=180s >/dev/null
-gitpod="$(kc dev -n git get pod -l app=git-server -o jsonpath='{.items[0].metadata.name}')"
 rm -rf "$state/repo.git" && git clone -q --bare "$repo" "$state/repo.git"
-kc dev -n git exec "$gitpod" -- rm -rf /srv/git/repo.git
-kc dev -n git cp "$state/repo.git" "$gitpod:/srv/git/repo.git" >/dev/null
+# `exec deploy/...` picks a running pod (a name from `get pods` may be a terminating one).
+kc dev -n git exec deploy/git-server -- rm -rf /srv/git/repo.git
+tar -C "$state" -cf - repo.git | kc dev -n git exec -i deploy/git-server -- tar -C /srv/git -xf -
 GIT_URL="git://git-server.git.svc.cluster.local/repo.git"
 pass "serving $(git -C "$repo" rev-parse --short HEAD) at $GIT_URL"
 
