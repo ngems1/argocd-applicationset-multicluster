@@ -55,6 +55,10 @@ spec:
         name: "{{ .name }}"
         namespace: podinfo
       syncPolicy:
+        # While RollingSync is on, the controller sets automated.enabled=false on every
+        # generated Application and triggers the syncs itself, step by step: drift is
+        # detected (OutOfSync) but not self-healed (docs/adr/0003). These settings apply as
+        # soon as RollingSync is switched off.
         automated:
           prune: true
           selfHeal: true
