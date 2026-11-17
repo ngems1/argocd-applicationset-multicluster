@@ -1,0 +1,50 @@
+# Applied ONCE on every workload cluster by the platform team (not by Argo CD):
+#   kubectl --context <cluster> apply -f clusters/onboarding.yaml
+# It creates the namespace with the restricted Pod Security Standard and a ServiceAccount
+# that can manage that namespace only. Argo CD gets this account's credentials, never
+# cluster-admin (docs/adr/0004, THREAT-MODEL T1).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: podinfo
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/warn: restricted
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: argocd-manager
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argocd-manager
+  namespace: argocd-manager
+---
+# Write access to the podinfo namespace only. `admin` covers every namespaced kind but can't
+# grant anything outside the namespace.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: argocd-manager
+  namespace: podinfo
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: admin
+subjects:
+  - kind: ServiceAccount
+    name: argocd-manager
+    namespace: argocd-manager
+---
+# A long-lived token for the lab. In production use short-lived credentials instead
+# (EKS: an IAM role via awsAuthConfig; GKE/AKS: workload identity). See the README.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-manager-token
+  namespace: argocd-manager
+  annotations:
+    kubernetes.io/service-account.name: argocd-manager
+type: kubernetes.io/service-account-token

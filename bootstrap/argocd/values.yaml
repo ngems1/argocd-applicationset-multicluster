@@ -1,0 +1,19 @@
+# Values for the official argo-cd Helm chart (https://github.com/argoproj/argo-helm):
+#   helm upgrade --install argocd argo-cd --repo https://argoproj.github.io/argo-helm \
+#     --version 10.18.0 -n argocd --create-namespace -f bootstrap/argocd/values.yaml
+configs:
+  params:
+    # RollingSync (dev → staging → prod) is behind this flag.
+    applicationsetcontroller.enable.progressive.syncs: true
+  cm:
+    # The podinfo base inflates a Helm chart with Kustomize (helmCharts:).
+    kustomize.buildOptions: --enable-helm
+    # Track resources with an annotation, not the app.kubernetes.io/instance label that Helm
+    # charts also set, so Argo CD and the chart don't fight over one label.
+    application.resourceTrackingMethod: annotation
+
+# Not needed for the lab. In production enable SSO (dex or OIDC) and notifications.
+dex:
+  enabled: false
+notifications:
+  enabled: false
