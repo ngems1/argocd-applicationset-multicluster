@@ -9,7 +9,8 @@
 # so nothing has to be pushed to GitHub. What is checked:
 #   1. one Application per labelled cluster, each Synced + Healthy, each with its overlay
 #   2. progressive sync: a change committed to the base reaches dev, then staging, then prod
-#   3. self-heal: a manual `kubectl scale` in dev is reverted
+#   3. drift: a manual `kubectl scale` is detected (OutOfSync); RollingSync turns auto-sync
+#      off, so only a sync reverts it
 #   4. safety: removing the env label from the prod cluster does NOT delete prod
 #
 # Usage: tests/e2e/run.sh            (needs docker, kind, kubectl, helm, git, jq)
@@ -119,7 +120,7 @@ spec:
               git config --global --add safe.directory '*' &&
               exec git daemon --reuseaddr --export-all --enable=receive-pack --base-path=/srv/git /srv/git
           ports: [{containerPort: 9418}]
-          # Ready only once the daemon listens, so `rollout status` can't pass on a crashing pod.
+          # Ready only once the daemon listens, so rollout status can't pass on a crashing pod.
           readinessProbe:
             tcpSocket: {port: 9418}
             periodSeconds: 2
@@ -190,7 +191,7 @@ kc dev -n podinfo get pdb podinfo >/dev/null 2>&1 && fail "dev must not have a P
 [ "$(kc staging -n podinfo get pdb podinfo -o jsonpath='{.spec.minAvailable}')" = "1" ] || fail "staging PDB"
 pass "prod: HPA min 3, staging: PDB minAvailable 1, dev: no PDB"
 
-log "7/7 behaviour: progressive sync, self-heal, safe cluster removal"
+log "7/7 behaviour: progressive sync, drift, safe cluster removal"
 # 7a. Commit a change to the BASE (all environments) and push it to the in-cluster git server.
 kc dev -n git port-forward svc/git-server 19418:9418 >/dev/null 2>&1 &
 pf_pid=$!
@@ -222,9 +223,23 @@ done
 [ "${order[*]}" = "dev staging prod" ] || fail "rollout order was '${order[*]}', expected 'dev staging prod'"
 pass "RollingSync order: ${order[*]}"
 
-# 7b. Self-heal: a manual change in the cluster is reverted to what Git says.
+# 7b. Drift. RollingSync makes the ApplicationSet controller drive every sync, so it sets
+# automated.enabled=false on the generated Applications: a manual change is DETECTED
+# (OutOfSync) but NOT reverted until someone syncs (docs/adr/0003, LEARN "RollingSync").
+[ "$(argo get application podinfo-dev -o jsonpath='{.spec.syncPolicy.automated.enabled}')" = "false" ] \
+  || fail "expected RollingSync to disable auto-sync on podinfo-dev"
+pass "RollingSync disabled auto-sync (automated.enabled=false) on the generated Applications"
 kc dev -n podinfo scale deploy podinfo --replicas=4 >/dev/null
-wait_for 180 "self-heal reverted dev to 1 replica" bash -c \
+out_of_sync() { [ "$(argo get application podinfo-dev -o jsonpath='{.status.sync.status}')" = "OutOfSync" ]; }
+wait_for 180 "drift detected: podinfo-dev OutOfSync" out_of_sync
+sleep 30
+[ "$(kc dev -n podinfo get deploy podinfo -o jsonpath='{.spec.replicas}')" = "4" ] \
+  || fail "drift was reverted although auto-sync is off: the docs are wrong"
+pass "drift NOT auto-reverted after 30s (expected with RollingSync)"
+# What `argocd app sync podinfo-dev` does: request a sync operation on the Application.
+argo patch application podinfo-dev --type merge \
+  -p '{"operation":{"initiatedBy":{"username":"e2e"},"sync":{"prune":true}}}' >/dev/null
+wait_for 180 "a manual sync restored dev to 1 replica" bash -c \
   "[ \"\$(kubectl --kubeconfig '$state/dev.kubeconfig' -n podinfo get deploy podinfo -o jsonpath='{.spec.replicas}')\" = 1 ]"
 
 # 7c. Safety: the prod cluster loses its label (a typo, a botched migration...).
