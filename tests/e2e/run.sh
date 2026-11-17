@@ -53,14 +53,16 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Inside a container (make e2e), the kind API servers are reached over the "kind" Docker
-# network by container name; on a plain host, through the published localhost port.
+# `make e2e` runs this script in a container that shares the host's Docker daemon (socket
+# mount): then the kind API servers are reached over the "kind" Docker network by container
+# name. On a plain host, or with docker-in-docker (Codespaces), the daemon doesn't know us as
+# a container, and the published localhost ports work instead.
 in_container=0
-if [ -f /.dockerenv ]; then
+if [ -f /.dockerenv ] && docker inspect "$(hostname)" >/dev/null 2>&1; then
   in_container=1
-  # The repository is a bind mount owned by another user: tell git it's fine to read it.
-  git config --global --add safe.directory "$repo"
 fi
+# The repository may be a bind mount owned by another user: tell git it's fine to read it.
+git config --global --add safe.directory "$repo"
 
 log "1/7 kind clusters (Kubernetes ${KIND_NODE_IMAGE%%@*})"
 for c in "${CLUSTERS[@]}"; do
